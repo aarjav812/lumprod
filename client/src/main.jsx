@@ -5,7 +5,8 @@ import './styles.css'
 import { analytics, performanceMonitor } from './services'
 import { addSkipLink } from './utils/accessibility'
 import { registerServiceWorker } from './utils/serviceWorker'
-
+import { Analytics } from "@vercel/analytics/next"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 // Initialize analytics
 analytics.init()
 

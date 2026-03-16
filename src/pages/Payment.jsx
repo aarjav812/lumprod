@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
-import { doc, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { db } from '../firebaseDb';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import '../styles/Payment.css';
 
 export default function Payment() {
   const navigate = useNavigate();
   const { state } = useLocation();
-  const { user } = useAuth();
+  const _auth = useAuth();
   const initialSubmission = state?.submission;
   
-  const [submission, setSubmission] = useState(initialSubmission || null);
+  const [submission] = useState(initialSubmission || null);
   const [transactionId, setTransactionId] = useState('');
   const [loading, setLoading] = useState(!initialSubmission);
   const [error, setError] = useState('');
@@ -20,7 +20,6 @@ export default function Payment() {
   // If submission not passed via state, try to redirect back
   useEffect(() => {
     if (!initialSubmission) {
-      console.log('No submission data found in state');
       setError('No submission data found. Redirecting to dashboard...');
       setTimeout(() => navigate('/dashboard'), 2000);
     }
@@ -28,7 +27,7 @@ export default function Payment() {
 
   if (!submission) {
     return (
-      <div className="page">
+      <div className="payment-page">
         <div className="container">
           <div className="error-state">
             <h2>No Submission Found</h2>
@@ -44,7 +43,7 @@ export default function Payment() {
 
   if (loading) {
     return (
-      <div className="page">
+      <div className="payment-page">
         <div className="container">
           <div className="loading-container">
             <div className="loading-spinner"></div>
@@ -67,16 +66,12 @@ export default function Payment() {
     setError('');
 
     try {
-      console.log('Submission object:', submission);
-      console.log('Document ID:', submission.id);
-      
       if (!submission.id) {
         throw new Error('Submission ID is missing. Please go back to dashboard and try again.');
       }
 
       // Update the submission document
       const submissionRef = doc(db, 'lumiere_submissions', submission.id);
-      console.log('Updating document:', submissionRef.path);
       
       const updateData = {
         paymentStatus: 'confirmation-pending',
@@ -94,10 +89,7 @@ export default function Payment() {
         };
       }
       
-      console.log('Update data:', updateData);
       await updateDoc(submissionRef, updateData);
-
-      console.log('✓ Payment updated successfully');
       setSuccess(true);
       setTimeout(() => {
         navigate('/dashboard', { 
@@ -105,9 +97,6 @@ export default function Payment() {
         });
       }, 2000);
     } catch (err) {
-      console.error('❌ Payment error:', err);
-      console.error('Error code:', err.code);
-      console.error('Error message:', err.message);
       setError(`Error: ${err.message}`);
     } finally {
       setLoading(false);
@@ -116,10 +105,10 @@ export default function Payment() {
 
   if (success) {
     return (
-      <div className="page">
+      <div className="payment-page">
         <div className="container">
           <div className="success-container">
-            <div className="success-icon">✓</div>
+            <div className="success-icon">Done</div>
             <h1>Payment Submitted!</h1>
             <p>Your payment has been submitted successfully.</p>
             <p>Your payment status is now: <strong>Confirmation Pending</strong></p>
@@ -131,7 +120,7 @@ export default function Payment() {
   }
 
   return (
-    <div className="page">
+    <div className="payment-page">
       <div className="container">
         <div className="payment-container">
           <button onClick={() => navigate('/dashboard')} className="back-button">
@@ -180,7 +169,7 @@ export default function Payment() {
                 
                 <div className="qr-code-placeholder">
                   <img 
-                    src="https://via.placeholder.com/300?text=QR+Code" 
+                    src="/qr-code.png" 
                     alt="Payment QR Code" 
                     className="qr-code-image"
                   />
@@ -204,7 +193,7 @@ export default function Payment() {
                       required
                     />
                     <span className="form-hint">
-                      You'll receive the transaction ID in your payment confirmation message
+                      You&apos;ll receive the transaction ID in your payment confirmation message
                     </span>
                   </div>
 
@@ -217,7 +206,7 @@ export default function Payment() {
                   </button>
 
                   <p className="payment-note">
-                    After submitting, your payment status will be "Confirmation Pending". 
+                    After submitting, your payment status will be &quot;Confirmation Pending&quot;.
                     Our team will verify and confirm within 24 hours.
                   </p>
                 </form>

@@ -4,14 +4,10 @@
  */
 
 export const registerServiceWorker = () => {
-  // Temporarily disabled to force fresh content
-  if ('serviceWorker' in navigator) {
+  if ('serviceWorker' in navigator && import.meta.env.PROD) {
     window.addEventListener('load', () => {
-      // Add cache busting query parameter to force fresh sw.js
-      const swUrl = `/sw.js?v=${Date.now()}`;
-      
       navigator.serviceWorker
-        .register(swUrl)
+        .register('/sw.js')
         .then((registration) => {
           console.log('Service Worker registered:', registration.scope);
 

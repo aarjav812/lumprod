@@ -1,7 +1,7 @@
 // Service Worker for PWA
-// Use timestamp to auto-update cache on every service worker update
-const CACHE_NAME = `lumiere-cache-${Date.now()}`;
-const urlsToCache = [
+// Keep cache strategy conservative to avoid stale JS/CSS after deploys.
+const CACHE_NAME = 'lumiere-shell-v1';
+const APP_SHELL_URLS = [
   '/',
   '/index.html',
   '/manifest.json',
@@ -11,75 +11,54 @@ const urlsToCache = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('Opened cache');
-      return cache.addAll(urlsToCache);
+      return cache.addAll(APP_SHELL_URLS);
     })
   );
   self.skipWaiting();
 });
 
-// Activate event - Delete ALL old caches and claim clients
+// Activate event - cleanup old app shell caches and claim clients.
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
-      console.log('Available caches:', cacheNames);
       return Promise.all(
         cacheNames.map((cacheName) => {
-          // Delete any cache that doesn't match current cache name pattern
-          if (!cacheName.startsWith('lumiere-cache-') || cacheName !== CACHE_NAME) {
-            console.log('Deleting old cache:', cacheName);
+          if (cacheName.startsWith('lumiere-shell-') && cacheName !== CACHE_NAME) {
             return caches.delete(cacheName);
           }
+          return null;
         })
       );
-    }).then(() => {
-      // Claim all clients immediately
-      return self.clients.claim();
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
-// Fetch event - Network first with aggressive cache busting
+// Fetch event - network-first for navigations, avoid JS/CSS response caching.
 self.addEventListener('fetch', (event) => {
-  // Skip caching for unsupported schemes and methods
   const url = new URL(event.request.url);
-  const isHTTP = url.protocol === 'http:' || url.protocol === 'https:';
-  const isGET = event.request.method === 'GET';
-  
-  if (!isHTTP || !isGET) {
-    // Just fetch without caching for non-HTTP or non-GET requests
-    event.respondWith(fetch(event.request));
+  const isSameOrigin = url.origin === self.location.origin;
+  const isDocument = event.request.mode === 'navigate';
+
+  if (event.request.method !== 'GET' || !isSameOrigin) {
     return;
   }
 
-  // Skip caching for sw.js and index.html (always fetch fresh)
-  const urlString = event.request.url;
-  const isSWFile = urlString.includes('sw.js');
-  const isIndexHTML = urlString.endsWith('index.html') || urlString.endsWith('/');
-  
-  if (isSWFile) {
-    event.respondWith(fetch(event.request));
+  if (!isDocument) {
     return;
   }
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Only cache successful complete responses
-        if (response.status === 200 && response.type !== 'opaque') {
+        if (response && response.status === 200) {
           const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache).catch((err) => {
-              // Silently fail cache writes
-              console.debug('Cache write failed:', err.message);
-            });
-          });
+          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseToCache));
         }
         return response;
       })
-      .catch(() => {
-        // If network fails, try cache
-        return caches.match(event.request);
+      .catch(async () => {
+        const cached = await caches.match('/index.html');
+        return cached || caches.match('/');
       })
   );
 });

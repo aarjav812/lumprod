@@ -1,9 +1,8 @@
-import { db } from '../firebase';
+import { db } from '../firebaseDb';
 import { 
   collection, 
   doc, 
-  addDoc, 
-  getDoc,
+  addDoc,
   getDocs, 
   updateDoc,
   deleteDoc,

@@ -1,15 +1,18 @@
-import { Link } from "react-router-dom";
 import "./About.css";
 
 export default function About() {
   return (
     <div className="about-page">
-
       {/* HERO */}
-      <div className="hero-stack">
-        <h1 className="hero-title">LUMIERE</h1>
-        {/* <p className="hero-subtitle">PEC</p> */}
-      </div>
+      <section className="hero-stack">
+        <p className="about-eyebrow">About Lumiere 2026</p>
+        <h1 className="hero-title">Our Story</h1>
+        <p className="hero-subtitle">
+          Built from late-night edits, borrowed equipment, and a belief that young
+          filmmakers deserve a stage that treats their work with seriousness, scale,
+          and cinematic ambition.
+        </p>
+      </section>
 
       {/* INTRO */}
       <div className="split">
@@ -27,7 +30,11 @@ export default function About() {
 
         <div className="split-right">
           <div className="image-box">
-            🎥 Behind the Scenes
+            <img
+              src="/events/whereitbegan.png"
+              alt="Where It Began - Behind the Scenes"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '0.5rem' }}
+            />
           </div>
         </div>
       </div>
@@ -42,7 +49,11 @@ export default function About() {
 
         <div className="audience-left">
           <div className="audience-image">
-            🎬 Festival Visual
+            <img
+              src="/events/festivalvisuals.jpeg"
+              alt="Festival Visuals"
+              className="audience-image-media"
+            />
           </div>
         </div>
 
@@ -77,7 +88,11 @@ export default function About() {
       <div className="pdc-section">
 
         <div className="pdc-left">
-          <h2>Projection & Design Club (PDC)</h2>
+          <h2 className="hm-section-title">
+              PROJECTION<br />
+              <span className="hm-title-secondary">& DESIGN</span><br />
+              <span className="hm-title-secondary">CLUB</span>
+            </h2>
           <p>
             The Projection and Design Club of PEC Chandigarh is the institute’s
             official creative and visual media society.
@@ -94,7 +109,11 @@ export default function About() {
 
         <div className="pdc-right">
           <div className="pdc-image">
-            🏛 PDC Creative Space
+            <img
+              src="/events/pdccreativespace.png"
+              alt="PDC Creative Space"
+              className="pdc-image-media"
+            />
           </div>
         </div>
 

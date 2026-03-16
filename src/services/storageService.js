@@ -1,4 +1,4 @@
-import { storage } from '../firebase';
+import { storage } from '../firebaseStorage';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 
 /**
@@ -113,7 +113,7 @@ export const deleteFile = async (fileURL) => {
 export const base64ToFile = (base64String, filename) => {
   try {
     // Extract mime type and base64 data
-    const matches = base64String.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    const matches = base64String.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
     
     if (!matches || matches.length !== 3) {
       throw new Error('Invalid base64 string');

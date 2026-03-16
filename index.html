@@ -5,10 +5,74 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="LUMIERE 2026 - Annual Film Festival. Submit your films and celebrate cinema." />
     <meta name="theme-color" content="#111112" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <style>
+      #app-boot-loader {
+        position: fixed;
+        inset: 0;
+        z-index: 2000;
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 22% 18%, rgba(126, 162, 255, 0.14), transparent 44%),
+          radial-gradient(circle at 78% 12%, rgba(203, 165, 90, 0.15), transparent 42%),
+          linear-gradient(180deg, #0a0a0b 0%, #0d0d0f 44%, #09090a 100%);
+        color: #f2f2f2;
+        font-family: "Space Grotesk", sans-serif;
+        transition: opacity 220ms ease;
+      }
+
+      #app-boot-loader.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .app-boot-loader__content {
+        text-align: center;
+      }
+
+      .app-boot-loader__logo {
+        margin: 0 0 0.75rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.85);
+      }
+
+      .app-boot-loader__spinner {
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, 0.24);
+        border-top-color: #cba55a;
+        margin: 0 auto;
+        animation: app-boot-spin 0.85s linear infinite;
+      }
+
+      .app-boot-loader__text {
+        margin: 0.85rem 0 0;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.92rem;
+      }
+
+      @keyframes app-boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
     <title>LUMIERE 2026 | Film Festival</title>
     <link rel="icon" type="image/png" href="/lumiere-logo.png" />
   </head>
   <body>
+    <div id="app-boot-loader" role="status" aria-live="polite" aria-label="Loading Lumiere website">
+      <div class="app-boot-loader__content">
+        <p class="app-boot-loader__logo">Lumiere 2026</p>
+        <div class="app-boot-loader__spinner" aria-hidden="true"></div>
+        <p class="app-boot-loader__text">Loading experience...</p>
+      </div>
+    </div>
     <div id="root"></div>
     <div id="main-content"></div>
     <script type="module" src="/src/main.jsx"></script>

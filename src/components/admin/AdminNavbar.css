@@ -1,10 +1,20 @@
 .admin-navbar {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border-bottom: 2px solid rgba(167, 139, 250, 0.2);
-  position: sticky;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
+    #0f1012;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(12px);
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   z-index: 1000;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.34);
+}
+
+.admin-navbar-spacer {
+  height: 84px;
 }
 
 .admin-nav-container {
@@ -17,11 +27,26 @@
   gap: 2rem;
 }
 
+.admin-mobile-toggle {
+  display: none;
+}
+
+.admin-nav-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+}
+
 .admin-nav-brand h2 {
   margin: 0;
-  color: var(--text-primary);
-  font-size: 1.5rem;
+  color: #f3f3f4;
+  font-size: 1.08rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
 }
 
 .admin-nav-brand a {
@@ -39,36 +64,38 @@
   gap: 1.5rem;
   flex: 1;
   justify-content: center;
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .admin-nav-links a {
   color: var(--text-secondary);
   text-decoration: none;
-  font-weight: 500;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 0.56rem 0.92rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
   transition: all 0.3s ease;
   position: relative;
 }
 
 .admin-nav-links a:hover {
   color: var(--text-primary);
-  background: rgba(167, 139, 250, 0.1);
+  background: rgba(126, 162, 255, 0.12);
+  border-color: rgba(126, 162, 255, 0.28);
 }
 
 .admin-nav-links a.active {
   color: var(--text-primary);
-  background: rgba(167, 139, 250, 0.2);
+  background: rgba(203, 165, 90, 0.16);
+  border-color: rgba(203, 165, 90, 0.34);
 }
 
 .admin-nav-links a.active::after {
-  content: '';
-  position: absolute;
-  bottom: -2px;
-  left: 1rem;
-  right: 1rem;
-  height: 2px;
-  background: linear-gradient(90deg, #a78bfa, #60a5fa);
+  content: none;
 }
 
 .admin-nav-user {
@@ -79,10 +106,12 @@
 
 .admin-email {
   color: var(--text-secondary);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
   padding: 0.5rem 1rem;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .admin-logout-btn {
@@ -101,25 +130,81 @@
   box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
+  .admin-navbar-spacer {
+    display: block;
+    height: 74px;
+  }
+
   .admin-nav-container {
+    padding: 0.9rem 1rem;
+    gap: 0.75rem;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+
+  .admin-mobile-toggle {
+    display: inline-flex;
+    width: 42px;
+    height: 42px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.06);
+    color: #f1f1f4;
+    cursor: pointer;
+  }
+
+  .admin-mobile-toggle.is-open {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.32);
+  }
+
+  .admin-nav-panel {
+    grid-column: 1 / -1;
+    display: none;
     flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
+    gap: 0.75rem;
+    padding-top: 0.35rem;
+  }
+
+  .admin-nav-panel.open {
+    display: flex;
   }
 
   .admin-nav-links {
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.45rem;
   }
 
   .admin-nav-links a {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.9rem;
+    width: 100%;
+    text-align: center;
+    font-size: 0.74rem;
+    padding: 0.62rem 0.82rem;
   }
 
   .admin-email {
-    display: none;
+    display: inline-block;
+    max-width: 65vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.72rem;
+  }
+
+  .admin-nav-user {
+    width: 100%;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .admin-logout-btn {
+    flex-shrink: 0;
+    padding: 0.48rem 1rem;
   }
 }

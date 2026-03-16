@@ -2,7 +2,10 @@
 .admin-page {
   min-height: calc(100vh - 70px);
   padding: 2rem;
-  background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)), #0f1012;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -10,7 +13,7 @@
 .admin-header {
   margin-bottom: 2.5rem;
   padding-bottom: 1.5rem;
-  border-bottom: 2px solid rgba(167, 139, 250, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .admin-header h1 {
@@ -18,7 +21,7 @@
   color: var(--text-primary);
   font-size: 2.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  background: linear-gradient(135deg, #cba55a, #f0cf8e);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -32,7 +35,7 @@
   font-size: 1.2rem;
   color: var(--text-secondary);
   background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(167, 139, 250, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   margin: 2rem 0;
 }

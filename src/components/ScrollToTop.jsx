@@ -1,15 +1,17 @@
 // src/components/ScrollToTop.jsx
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { resetBodyScroll } from "../utils/dom";
 
 export default function ScrollToTop() {
   const { pathname } = useLocation();
 
   useEffect(() => {
+    resetBodyScroll();
     window.scrollTo({
       top: 0,
       left: 0,
-      behavior: "instant" // smooth mat rakhna
+      behavior: "instant"
     });
   }, [pathname]);
 

@@ -1,10 +1,29 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { auth } from '../firebase';
+import { auth } from '../firebaseAuth';
 import { onAuthStateChanged } from 'firebase/auth';
-import { isAdmin, getAdminDetails } from '../services/adminService';
 
 const AdminContext = createContext(null);
+const LOCAL_ADMIN_SESSION_KEY = 'lumiere_local_admin_session';
+
+const isLocalDev = () =>
+  import.meta.env.DEV &&
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const readLocalAdminSession = () => {
+  if (!isLocalDev()) return null;
+
+  try {
+    const raw = localStorage.getItem(LOCAL_ADMIN_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.email) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};
 
 export const useAdmin = () => {
   const context = useContext(AdminContext);
@@ -25,11 +44,13 @@ export const AdminProvider = ({ children }) => {
       
       if (user) {
         try {
+          const { isAdmin, getAdminDetails } = await import('../services/adminService');
+
           // Check if user is admin
-          const adminStatus = await isAdmin(user.uid);
+          const adminStatus = await isAdmin(user.uid, user.email);
           
           if (adminStatus) {
-            const adminDetails = await getAdminDetails(user.uid);
+            const adminDetails = await getAdminDetails(user.uid, user.email);
             setAdmin(adminDetails);
             setIsAdminUser(true);
           } else {
@@ -42,8 +63,14 @@ export const AdminProvider = ({ children }) => {
           setIsAdminUser(false);
         }
       } else {
-        setAdmin(null);
-        setIsAdminUser(false);
+        const localAdminSession = readLocalAdminSession();
+        if (localAdminSession) {
+          setAdmin(localAdminSession);
+          setIsAdminUser(true);
+        } else {
+          setAdmin(null);
+          setIsAdminUser(false);
+        }
       }
       
       setLoading(false);

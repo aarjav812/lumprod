@@ -1,319 +1,426 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "../AuthContext";
+import { Camera, Calendar, ChevronDown, Instagram, Layers, Linkedin, MapPin, Monitor } from "lucide-react";
 import "./Home.css";
 
-const CATEGORIES = [
-  { id: "northern_ray", name: "The Northern Ray", icon: "📍", desc: "Regional Short Films" },
-  { id: "prism", name: "Prism Showcase", icon: "🌐", desc: "National Student Films" },
-  { id: "sprint", name: "Lumière Sprint", icon: "⚡", desc: "48-Hour Challenge" },
-  { id: "vertical", name: "Vertical Ray", icon: "📱", desc: "Mobile Vertical Films" },
+const FESTIVAL_START_TIME = new Date("2026-04-10T18:00:00+05:30").getTime();
+
+const getCountdown = () => {
+  const delta = FESTIVAL_START_TIME - Date.now();
+
+  if (delta <= 0) {
+    return { live: true, days: "00", hours: "00", minutes: "00", seconds: "00" };
+  }
+
+  const days = Math.floor(delta / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((delta / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((delta / (1000 * 60)) % 60);
+  const seconds = Math.floor((delta / 1000) % 60);
+
+  return {
+    live: false,
+    days: String(days).padStart(2, "0"),
+    hours: String(hours).padStart(2, "0"),
+    minutes: String(minutes).padStart(2, "0"),
+    seconds: String(seconds).padStart(2, "0"),
+  };
+};
+
+const categories = [
+  { count: "", label: "3", name: "DAYS" },
+  { count: "", label: "15", name: "EVENTS" },
+  { count: "", label: "1.2L", name: "PRIZE POOL" },
+  { count: "", label: "100+", name: "ENTRIES" },
 ];
 
-export default function Home() {
-  /* ======================
-     COUNTDOWN
-  ====================== */
-  const festivalDate = new Date("April 10, 2026 00:00:00").getTime();
+const values = [
+  {
+    icon: Camera,
+    title: "Cinematic Integrity",
+    description:
+      "Preserving the grit and depth of visual storytelling in a digital-first world.",
+  },
+  {
+    icon: Layers,
+    title: "Visual Narrative",
+    description:
+      "Championing stories that challenge perspective and leave lasting impact.",
+  },
+  {
+    icon: Monitor,
+    title: "Global Reach",
+    description:
+      "Connecting filmmakers and audiences through a shared cinematic language.",
+  },
+];
 
-  const [timeLeft, setTimeLeft] = useState({
-    days: 0,
-    hours: 0,
-    minutes: 0,
+const leadership = [
+  {
+    initials: "AC",
+    role: "The Secretary",
+    name: "Ayush Chauhan",
+    instagram: "https://www.instagram.com/ayushchauhan_485/",
+    linkedin: "https://www.linkedin.com/in/ayush485/",
+  },
+  {
+    initials: "HK",
+    role: "Joint Secretary",
+    name: "Hitesh Kochar",
+    instagram: "https://www.instagram.com/kochar_hitesh/",
+    linkedin: "https://www.linkedin.com/in/hitesh-kochar-738251257/",
+  },
+];
+
+const showcases = [
+  {
+    title: "Midnight Drift",
+    subtitle: "Official Selection",
+    thumbnail: "/events/undermaintenance.png",
+    youtube: "https://www.youtube.com/watch?v=swvJ8KKStyo",
+    description:
+      "A moody city-side visual narrative exploring momentum, isolation, and the quiet pulse of a sleepless night.",
+    large: true,
+  },
+  {
+    title: "The Trap",
+    subtitle: "Experimental",
+    thumbnail: "/events/trap.png",
+    youtube: "https://youtu.be/tBZ_kc32UVw",
+    description:
+      "In the Fast Moving World populated by innumerable individuals all working towards fulfilling their Dreams...",
+  },
+];
+
+const getYouTubeId = (url) => {
+  if (!url) return "";
+
+  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (shortMatch) return shortMatch[1];
+
+  const longMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (longMatch) return longMatch[1];
+
+  return "";
+};
+
+const getYouTubePreviewUrl = (url) => {
+  const videoId = getYouTubeId(url);
+  if (!videoId) return "";
+
+  const params = new URLSearchParams({
+    autoplay: "1",
+    mute: "1",
+    controls: "0",
+    rel: "0",
+    modestbranding: "1",
+    playsinline: "1",
   });
 
+  return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+};
+
+export default function Home() {
+  const { user } = useAuth();
+  const homeRef = useRef(null);
+  const [countdown, setCountdown] = useState(getCountdown);
+  const [activePreview, setActivePreview] = useState("");
+  const [hoveredShowcase, setHoveredShowcase] = useState("");
+  const [showScrollHint, setShowScrollHint] = useState(true);
+
   useEffect(() => {
-    document.body.classList.add("home");
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, []);
 
-    const logoWrapper = document.querySelector(".logo-wrapper");
-    if (!logoWrapper) return;
+  useEffect(() => {
+    const homeElement = homeRef.current;
+    if (!homeElement) return;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        const header = document.querySelector(".header");
-        if (!header) return;
+    const setGlowPosition = (x, y) => {
+      homeElement.style.setProperty("--hm-mx", `${x}px`);
+      homeElement.style.setProperty("--hm-my", `${y}px`);
+    };
 
-        if (entry.isIntersecting) {
-          header.classList.remove("show-header");
-        } else {
-          header.classList.add("show-header");
-        }
-      },
-      {
-        threshold: 0,
-        rootMargin: "-80px 0px 0px 0px",
-      }
-    );
+    const handleMouseMove = (event) => {
+      setGlowPosition(event.clientX, event.clientY);
+    };
 
-    observer.observe(logoWrapper);
+    const resetGlow = () => {
+      setGlowPosition(window.innerWidth * 0.5, window.innerHeight * 0.35);
+    };
+
+    resetGlow();
+    window.addEventListener("mousemove", handleMouseMove, { passive: true });
+    window.addEventListener("blur", resetGlow);
 
     return () => {
-      document.body.classList.remove("home");
-      observer.disconnect();
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("blur", resetGlow);
     };
   }, []);
-  useEffect(() => {
-    const onScroll = () => {
-      if (window.scrollY > window.innerHeight * 0.6) {
-        document.body.classList.add("scrolled");
-      } else {
-        document.body.classList.remove("scrolled");
-      }
-    };
-
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      const now = Date.now();
-      const diff = festivalDate - now;
-
-      if (diff > 0) {
-        setTimeLeft({
-          days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-          minutes: Math.floor((diff / (1000 * 60)) % 60),
-        });
-      }
+    const timer = window.setInterval(() => {
+      setCountdown(getCountdown());
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      window.clearInterval(timer);
+    };
   }, []);
 
-  /* ======================
-     SCROLL ANIMATION
-  ====================== */
   useEffect(() => {
-    const sections = document.querySelectorAll(".snap-section");
+    const hideHint = () => {
+      setShowScrollHint(false);
+    };
 
-    const observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("show");
-          }
-        });
-      },
-      { threshold: 0.4 }
-    );
+    if (window.scrollY > 8) {
+      hideHint();
+      return;
+    }
 
-    sections.forEach(sec => observer.observe(sec));
-    return () => observer.disconnect();
+    const onScroll = () => {
+      if (window.scrollY > 8) {
+        hideHint();
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", hideHint, { passive: true });
+    window.addEventListener("touchstart", hideHint, { passive: true });
+    window.addEventListener("keydown", hideHint);
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", hideHint);
+      window.removeEventListener("touchstart", hideHint);
+      window.removeEventListener("keydown", hideHint);
+    };
   }, []);
+
+  const handleScrollHintClick = () => {
+    setShowScrollHint(false);
+    window.scrollTo({ top: window.innerHeight * 0.82, behavior: "smooth" });
+  };
 
   return (
-    <div className="page">
-      <div className="scroll-container">
-
-        {/* ================= HERO ================= */}
-          <section className="snap-section hero-section" id="hero">
-          <div className="hero-inner fade-section">
-
-            <div className="hero-badge">
-              10 APRIL 2026 • PEC CHANDIGARH
-            </div>
-
-            {/* <h1 className="hero-title glow-text">LUMIÈRE</h1> */}
-            <div className="logo-wrapper">
-                {/* <br /> */}
-                <img
-                  src="/logo-text.png"
-                  alt="Lumière"
-                  className="logo-text"
-                />
-            </div>
-            {/* COUNTDOWN */}
-            <div className="countdown">
-              <div className="time-box">
-                <span>{timeLeft.days}</span>
-                <small>Days</small>
-              </div>
-              <div className="time-box">
-                <span>{timeLeft.hours}</span>
-                <small>Hours</small>
-              </div>
-              <div className="time-box">
-                <span>{timeLeft.minutes}</span>
-                <small>Minutes</small>
-              </div>
-            </div>
-
-            <p className="hero-subtitle">National Film Festival 2026</p>
-
-            <p className="hero-tagline">
-              Where <span className="purple">stories come alive</span> and{" "}
-              <span className="gold">dreams take flight</span>
-            </p>
-
-            <div className="hero-buttons">
-              <Link to="/register" className="btn-primary">Begin Your Journey</Link>
-              <Link to="/about" className="btn-secondary">Explore Festival →</Link>
-            </div>
+    <main ref={homeRef} className="hm-home-page">
+      <section className="hm-hero" id="top">
+        <div className="hm-hero-overlay" aria-hidden="true" />
+        <div className="hm-hero-content">
+          <p className="hm-eyebrow hm-hero-pretitle">Punjab Engineering College • PDC Presents</p>
+          <img src="/logo-text.png" alt="Lumiere" className="hm-hero-logo" />
+          <p className="hm-hero-subtitle">film festival</p><div className="hm-hero-timer" aria-live="polite">
+            {countdown.live ? (
+              <span className="hm-hero-live">Live Now</span>
+            ) : (
+              <>
+                <span className="hm-hero-timer-block">{countdown.days}</span>
+                <span className="hm-hero-timer-block">{countdown.hours}</span>
+                <span className="hm-hero-timer-block">{countdown.minutes}</span>
+                <span className="hm-hero-timer-block">{countdown.seconds}</span>
+              </>
+            )}
           </div>
-        </section>
-
-        {/* ================= STATS (TEASER) ================= */}
-        <section className="snap-section stats-section">
-          <div className="stats-wrapper">
-
-            <p className="stats-intro">
-              Lights on. Camera ready. Stories begin.
-            </p>
-
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-icon calendar"></div>
-                <div className="stat-value">3</div>
-                <div className="stat-label">Days</div>
-                <p className="stat-desc">Non-stop screenings & events</p>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-icon clapper"></div>
-                <div className="stat-value">5</div>
-                <div className="stat-label">Categories</div>
-                <p className="stat-desc">Fiction, docs & more</p>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-icon prize"></div>
-                <div className="stat-value">₹1.96L</div>
-                <div className="stat-label">Prize Pool</div>
-                <p className="stat-desc">Celebrating cinematic excellence</p>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-icon users"></div>
-                <div className="stat-value">500+</div>
-                <div className="stat-label">Participants</div>
-                <p className="stat-desc">Filmmakers from across India</p>
-              </div>
-            </div>
-
+          <p className="hm-hero-description">
+            The definitive gathering of cinematic visionaries. Explore the
+            boundaries of visual storytelling through short films, workshops,
+            and the legendary Design Showdown.
+          </p>
+          <div className="hm-hero-meta" aria-label="Festival date and venue">
+            <span className="hm-hero-meta-item">
+              <Calendar size={18} strokeWidth={1.8} aria-hidden="true" />
+              <span>April 10 to 12, 2026</span>
+            </span>
+            <span className="hm-hero-meta-divider" aria-hidden="true">•</span>
+            <span className="hm-hero-meta-item">
+              <MapPin size={18} strokeWidth={1.8} aria-hidden="true" />
+              <span>PEC, Chandigarh</span>
+            </span>
           </div>
-        </section>
-        {/* ================= ABOUT ================= */}
-        <section className="snap-section about-section">
-          <div className="about-heading">
-            <h2>Where Stories Come to Life</h2>
-            <p>Cinema · Creativity · Collaboration</p>
+          <div className="hm-hero-actions">
+            <Link to="/categories" className="hm-btn hm-btn-primary">
+              Register
+            </Link>
+            <Link to="/about" className="hm-btn hm-btn-secondary">
+              Explore Festival
+            </Link>
+          </div>
+        </div>
+        {showScrollHint && (
+          <button
+            type="button"
+            className="hm-scroll-hint"
+            onClick={handleScrollHintClick}
+            aria-label="Scroll down"
+          >
+            <span>Scroll</span>
+            <ChevronDown size={17} strokeWidth={2} aria-hidden="true" />
+          </button>
+        )}
+      </section>
+
+      <section className="hm-section hm-section-dark">
+        <div className="hm-container hm-grid hm-categories-grid">
+          {categories.map((cat) => (
+            <article key={cat.name} className="hm-category-card">
+              <p className={`hm-eyebrow ${cat.highlight ? "hm-accent" : ""}`}>
+                {cat.label}
+              </p>
+              <h2>{cat.name}</h2>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="hm-section">
+        <div className="hm-container hm-about-grid">
+          <div>
+            <p className="hm-eyebrow">PDC Legacy</p>
+            <h2 className="hm-section-title">
+              THE<br />
+              PROJECTION<br />
+              <span className="hm-title-secondary">& DESIGN</span><br />
+              <span className="hm-title-secondary">CLUB</span>
+            </h2>
+          </div>
+          <div className="hm-about-copy">
+            <p>
+              Lumiere is the flagship celebration of fresh cinematic talent at
+              PEC. Under the guidance of the Secretariat, we nurture the next
+              generation of visual architects.
+            </p>
+            {leadership.map((member) => (
+              <div key={member.name} className="hm-person-card">
+                <div className="hm-person-content">
+                  <span>{member.initials}</span>
+                  <div>
+                    <p className="hm-eyebrow">{member.role}</p>
+                    <strong>{member.name}</strong>
+                  </div>
+                </div>
+
+                <div className="hm-person-socials" aria-label={`${member.name} social links`}>
+                  <a
+                    href={member.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hm-person-social-link"
+                    aria-label={`${member.name} Instagram`}
+                  >
+                    <Instagram size={14} strokeWidth={2} aria-hidden="true" />
+                  </a>
+                  <a
+                    href={member.linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hm-person-social-link"
+                    aria-label={`${member.name} LinkedIn`}
+                  >
+                    <Linkedin size={14} strokeWidth={2} aria-hidden="true" />
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="hm-section hm-section-dark">
+        <div className="hm-container hm-grid hm-values-grid">
+          {values.map((value) => (
+            <article key={value.title} className="hm-value-card">
+              <div className="hm-value-icon" aria-hidden="true">
+                <value.icon className="hm-icon" size={20} strokeWidth={1.5} />
+              </div>
+              <h3>{value.title}</h3>
+              <p>{value.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section id="premiere" className="hm-section hm-section-dark">
+        <div className="hm-container">
+          <h2 className="hm-section-title">
+            Premiere
+            <br />
+            Showcases
+          </h2>
+
+          <div className="hm-grid hm-showcase-grid">
+            {showcases.map((showcase) => {
+              const previewUrl = getYouTubePreviewUrl(showcase.youtube);
+              const isPreviewActive = activePreview === showcase.title;
+              const isExpanded = hoveredShowcase
+                ? hoveredShowcase === showcase.title
+                : Boolean(showcase.large);
+
+              return (
+                <a
+                  key={showcase.title}
+                  href={showcase.youtube}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`hm-showcase-link ${isExpanded ? "hm-showcase-expanded" : "hm-showcase-compact"}`}
+                >
+                  <article
+                    className="hm-showcase-card"
+                    onMouseEnter={() => {
+                      setHoveredShowcase(showcase.title);
+                      if (previewUrl) {
+                        setActivePreview(showcase.title);
+                      }
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredShowcase("");
+                      setActivePreview((current) => (current === showcase.title ? "" : current));
+                    }}
+                  >
+                    <img
+                      src={showcase.thumbnail}
+                      alt={showcase.title}
+                      className="hm-showcase-thumb"
+                    />
+
+                    {isPreviewActive && previewUrl && (
+                      <iframe
+                        src={previewUrl}
+                        title={`${showcase.title} preview`}
+                        className="hm-showcase-video hm-showcase-iframe"
+                        loading="lazy"
+                        allow="autoplay; encrypted-media; picture-in-picture"
+                        referrerPolicy="strict-origin-when-cross-origin"
+                      />
+                    )}
+
+                    <div className="hm-showcase-overlay">
+                      <p className="hm-eyebrow">{showcase.subtitle}</p>
+                      <h3>{showcase.title}</h3>
+
+                      {showcase.description && (
+                        <p className="hm-showcase-desc">
+                          {showcase.description}
+                          <span className="hm-see-more"> See more</span>
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                </a>
+              );
+            })}
           </div>
 
-          <div className="about-card">
-            <p className="about-text">
-              Lumière is North India’s{" "}
-              <span className="purple">premier student film festival</span>,
-              celebrating festival-ready cinema, bold ideas and original voices.
-            </p>
-
-            <p className="about-subtext">
-              Hosted at <span className="gold">PEC Chandigarh</span>, Lumière
-              brings together filmmakers from across the country for three
-              unforgettable days of screenings, challenges and conversations.
-            </p>
-
-            <div className="about-cta">
-              <Link to="/about" className="about-btn">Learn More</Link>
-            </div>
+          <div className="hm-bottom-cta">
+            <Link
+              to="/categories"
+              className="hm-btn hm-btn-primary"
+            >
+              Join Lumiere 2026
+            </Link>
           </div>
-        </section>
-
-        {/* ================= FOOTER ================= */}
-        <section className="snap-section footer-section">
-          <footer className="footer-box">
-            <h3>LUMIERE</h3>
-
-
-            <div className="footer-contact">
-              <a href="mailto:lumiere.pec@gmail.com">
-                <span className="footer-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" role="img" focusable="false">
-                    <path
-                      d="M4 6h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinejoin="round"
-                    />
-                    <path
-                      d="m4 8 8 6 8-6"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-                lumiere.pec@gmail.com
-              </a>
-              <a
-                href="https://www.instagram.com/lumiere_pec/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className="footer-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" role="img" focusable="false">
-                    <rect
-                      x="3"
-                      y="3"
-                      width="18"
-                      height="18"
-                      rx="5"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    />
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="4"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    />
-                    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" />
-                  </svg>
-                </span>
-                @lumiere_pec
-              </a>
-              <a
-                href="https://maps.google.com/?q=Punjab%20Engineering%20College,%20Chandigarh"
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span className="footer-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" role="img" focusable="false">
-                    <path
-                      d="M12 22s7-6.2 7-12a7 7 0 1 0-14 0c0 5.8 7 12 7 12Z"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                      strokeLinejoin="round"
-                    />
-                    <circle
-                      cx="12"
-                      cy="10"
-                      r="2.8"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
-                    />
-                  </svg>
-                </span>
-                Punjab Engineering College, Chandigarh
-              </a>
-
-            </div>
-
-            <p className="footer-copy">
-              © 2026 Lumiere National Film Festival
-            </p>
-          </footer>
-        </section>
-
-      </div>
-    </div>
+        </div>
+      </section>
+    </main>
   );
 }

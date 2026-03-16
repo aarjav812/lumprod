@@ -16,7 +16,7 @@ class ErrorBoundary extends Component {
     };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(_error) {
     return { hasError: true };
   }
 
@@ -27,12 +27,11 @@ class ErrorBoundary extends Component {
     });
 
     // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.MODE === 'development') {
       console.error('ErrorBoundary caught an error:', error, errorInfo);
     }
 
-    // In production, you would send this to an error reporting service
-    // logErrorToService(error, errorInfo);
+
   }
 
   handleReset = () => {
@@ -83,7 +82,7 @@ class ErrorBoundary extends Component {
             <p className="error-boundary__message">
               {this.props.errorMessage || 'An unexpected error occurred. Please try again.'}
             </p>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.MODE === 'development' && this.state.error && (
               <details className="error-boundary__details">
                 <summary>Error Details</summary>
                 <pre className="error-boundary__error-text">

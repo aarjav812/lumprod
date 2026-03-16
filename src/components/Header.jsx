@@ -1,55 +1,92 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { Menu, X } from "lucide-react";
 import { useAuth } from "../AuthContext";
+import { prefetchRoute } from "../App";
+import { lockBodyScroll, unlockBodyScroll } from "../utils/dom";
 import "./Header.css";
 
 const NAV_LINKS = [
   { href: "/about", label: "About" },
+  { href: "/team", label: "Team" },
+  { href: "/fun-events", label: "Fun Events" },
   { href: "/categories", label: "Categories" },
-  // { href: "/schedule", label: "Schedule" },
   { href: "/guidelines", label: "Guidelines" },
   { href: "/faq", label: "FAQ" },
 ];
 
+const handlePrefetch = (href) => {
+  prefetchRoute(href);
+};
+
 export default function Header() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
   const location = useLocation();
+  const isHomePage = location.pathname === "/";
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 8);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("resize", handleScroll);
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+    };
+  }, [location.pathname]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user } = useAuth();
 
   /* Close mobile menu on route change */
   useEffect(() => {
     setMobileMenuOpen(false);
   }, [location.pathname]);
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      setMobileMenuOpen(false);
-    } catch (err) {
-      console.error("Sign out error:", err);
-    }
-  };
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+
+    const onKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    lockBodyScroll();
+    window.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      unlockBodyScroll();
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [mobileMenuOpen]);
 
   const toggleMobileMenu = () => {
     setMobileMenuOpen(prev => !prev);
   };
 
+  const handleHomeClick = () => {
+    setMobileMenuOpen(false);
+    if (location.pathname === "/") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
   return (
-    <header className={`header ${mobileMenuOpen ? "menu-open" : ""}`}>
+    <header className={`header ${isHomePage ? "header-home" : ""} ${(!isHomePage || scrolled) ? "header-visible" : ""}`}>
       <div className="header-container">
 
-        {/* LOGO */}
         <Link
           to="/"
           className="header-logo"
-          onClick={() => setMobileMenuOpen(false)}
+          onClick={handleHomeClick}
         >
-          <img
-            src="/logo-text.png"
-            alt="LUMIÈRE"
-            className="logo-image"
-          />
+          <span className="logo-text" aria-label="Lumiere 2026">Lumiere'26</span>
         </Link>
+
 
         {/* DESKTOP NAV */}
         <nav className="header-nav">
@@ -57,9 +94,10 @@ export default function Header() {
             <Link
               key={link.href}
               to={link.href}
-              className={`nav-link ${
-                location.pathname === link.href ? "active" : ""
-              }`}
+              onMouseEnter={() => handlePrefetch(link.href)}
+              onFocus={() => handlePrefetch(link.href)}
+              className={`nav-link ${location.pathname === link.href ? "active" : ""
+                }`}
             >
               {link.label}
             </Link>
@@ -69,57 +107,53 @@ export default function Header() {
         {/* ACTIONS */}
         <div className="header-actions">
           {user ? (
-            <>
-              <Link to="/dashboard" className="btn btn-ghost hide-mobile">
-                Dashboard
-              </Link>
-              <button
-                type="button"
-                className="btn btn-primary hide-mobile is-disabled"
-                disabled
-              >
-                Submit video
-              </button>
-              <button onClick={handleSignOut} className="btn btn-ghost">
-                Logout
-              </button>
-            </>
+            <Link to="/dashboard" className="cta-stack cta-stack-dashboard" aria-label="Dashboard">
+              <span className="cta-label">Dashboard</span>
+            </Link>
           ) : (
-            <>
-              <Link to="/login" className="btn btn-ghost hide-mobile">
-                Login
-              </Link>
-              <Link to="/register" className="btn btn-primary">
-                Register
-              </Link>
-            </>
+            <Link to="/register" className="cta-stack" aria-label="Sign up">
+              <span className="cta-label">Sign Up</span>
+            </Link>
           )}
-
-          {/* MOBILE MENU BUTTON */}
-          <button
-            className="menu-btn"
-            aria-label="Toggle Menu"
-            aria-expanded={mobileMenuOpen}
-            onClick={toggleMobileMenu}
-          >
-            <span className="menu-icon">
-              {mobileMenuOpen ? "✕" : "☰"}
-            </span>
-          </button>
         </div>
       </div>
 
+      <button
+        className={`mobile-popup-btn ${mobileMenuOpen ? "is-open" : ""}`}
+        aria-label="Toggle navigation menu"
+        aria-expanded={mobileMenuOpen}
+        onClick={toggleMobileMenu}
+      >
+        {mobileMenuOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+      </button>
+
+      <div
+        className={`mobile-menu-backdrop ${mobileMenuOpen ? "open" : ""}`}
+        onClick={() => setMobileMenuOpen(false)}
+        aria-hidden={!mobileMenuOpen}
+      />
+
       {/* MOBILE MENU */}
-      <div className={`mobile-menu ${mobileMenuOpen ? "open" : ""}`}>
+      <div className={`mobile-menu mobile-popup ${mobileMenuOpen ? "open" : ""}`}>
         <div className="mobile-menu-inner">
+          <div className="mobile-menu-head">
+            <Link
+              to="/"
+              className="header-logo"
+              onClick={handleHomeClick}
+            >
+              <span className="logo-text" aria-label="Lumiere 2026">Lumiere'26</span>
+            </Link>
+          </div>
 
           {NAV_LINKS.map(link => (
             <Link
               key={link.href}
               to={link.href}
-              className={`nav-link ${
-                location.pathname === link.href ? "active" : ""
-              }`}
+              onMouseEnter={() => handlePrefetch(link.href)}
+              onFocus={() => handlePrefetch(link.href)}
+              className={`nav-link ${location.pathname === link.href ? "active" : ""
+                }`}
               onClick={() => setMobileMenuOpen(false)}
             >
               {link.label}
@@ -137,12 +171,6 @@ export default function Header() {
               >
                 Dashboard
               </Link>
-              <button
-                onClick={handleSignOut}
-                className="nav-link mobile-logout"
-              >
-                Sign Out
-              </button>
             </>
           ) : (
             <>
@@ -151,14 +179,14 @@ export default function Header() {
                 className="nav-link"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Login
+                Sign In
               </Link>
               <Link
                 to="/register"
                 className="nav-link"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Register
+                Sign Up
               </Link>
             </>
           )}

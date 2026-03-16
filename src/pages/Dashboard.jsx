@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
-import { collection, query, where, getDocs, doc } from 'firebase/firestore';
+import { db } from '../firebaseDb';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { Film } from 'lucide-react';
+import './Dashboard.css';
 
 export default function Dashboard() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const { user } = useAuth();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -28,18 +31,15 @@ export default function Dashboard() {
 
   const fetchSubmissions = async () => {
     try {
-      console.log('Fetching submissions for user:', user.uid);
       const q = query(
         collection(db, 'lumiere_submissions'),
         where('userId', '==', user.uid)
       );
       
       const snapshot = await getDocs(q);
-      console.log('Submissions found:', snapshot.size);
       const subs = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        console.log('Submission data:', data);
         subs.push({
           id: doc.id,
           ...data,
@@ -54,7 +54,6 @@ export default function Dashboard() {
         return dateB - dateA; // descending order
       });
       
-      console.log('Final submissions:', subs);
       setSubmissions(subs);
       setError('');
     } catch (err) {
@@ -86,125 +85,184 @@ export default function Dashboard() {
     return statusClasses[paymentStatus] || 'status-pending';
   };
 
+  const handleLogout = async () => {
+    setError('');
+    setSuccessMessage('');
+    setLoggingOut(true);
+
+    try {
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (logoutError) {
+      console.error('Logout error:', logoutError);
+      setError('Failed to log out. Please try again.');
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
   return (
-    <div className="page">
-      <div className="container">
-        <div className="dashboard-header">
-          <div>
-            <h1 className="page-title">Dashboard</h1>
-            <p className="page-subtitle">Welcome back, {user?.displayName || 'Filmmaker'}</p>
-          </div>
-          <button type="button" className="btn btn-primary is-disabled" disabled>
-            Submissions starting soon...
+    <div className="dashboard-container">
+      <div className="dashboard-wrapper">
+        {/* Hero Section */}
+        <div className="dashboard-hero">
+          <h1 className="dashboard-title">Dashboard</h1>
+          <p className="dashboard-welcome">Welcome back, {user?.displayName || 'filmmaker'}</p>
+        </div>
+
+        {/* Actions */}
+        <div className="dashboard-actions">
+          <button 
+            type="button" 
+            className="submit-film-btn" 
+            onClick={() => navigate('/submit')}
+          >
+            + Submit Film
+          </button>
+          <button
+            type="button"
+            className="logout-btn"
+            onClick={handleLogout}
+            disabled={loggingOut}
+          >
+            {loggingOut ? 'Logging Out...' : 'Logout'}
           </button>
         </div>
 
+        {/* Brochure Info */}
+        <div className="dashboard-info-section">
+          <div className="info-content">
+            <p className="info-title">Event Brochure</p>
+            <p className="info-description">
+              Download the complete LUMIERE 2026 brochure for detailed event information
+            </p>
+          </div>
+          <a 
+            href="https://drive.google.com/file/d/1UXi2SCWgXVPrBOWbAM5q6VLzNIYR0pNj/view?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="info-action"
+          >
+            View Brochure
+          </a>
+        </div>
+
+        {/* Messages */}
         {successMessage && (
-          <div className="success-message" style={{
-            background: 'rgba(16, 185, 129, 0.1)',
-            border: '1px solid rgba(16, 185, 129, 0.5)',
-            borderRadius: '8px',
-            padding: '1rem',
-            marginBottom: '1.5rem',
-            color: '#10b981',
-            fontWeight: 600
-          }}>
-            ✓ {successMessage}
+          <div className="dashboard-message success-message">
+            <span>OK</span>
+            <span>{successMessage}</span>
           </div>
         )}
 
-        {error && <div className="error-message">{error}</div>}
-
-        {loading ? (
-          <div className="loading-container">
-            <div className="loading-spinner"></div>
-            <p>Loading your submissions...</p>
+        {error && (
+          <div className="dashboard-message error-message">
+            <span>Error</span>
+            <span>{error}</span>
           </div>
-        ) : submissions.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">🎬</div>
-            <h2>No Submissions Yet</h2>
-            <p>You haven't submitted any films yet. Start by submitting your first film!</p>
-            <button type="button" className="btn btn-primary is-disabled" disabled>
-              Submissions starting soon...
-            </button>
-          </div>
-        ) : (
-          <div className="submissions-grid">
-            {submissions.map((submission) => (
-              <div key={submission.id} className="submission-card">
-                <div className="submission-header">
-                  <h3 className="submission-title">{submission.title}</h3>
-                  <div className="submission-badges">
-                    <span className={`status-badge ${getPaymentBadge(submission.paymentStatus)}`}>
-                      {submission.paymentStatus === 'verified' ? '✓ Successful Submission' : 
-                       submission.paymentStatus === 'rejected' ? '✗ Rejected' :
-                       submission.paymentStatus === 'confirmation-pending' ? '⏳ Confirmation Pending' :
-                       '⏳ Pending Payment'}
-                    </span>
-                    {submission.status && submission.status !== 'submitted' && (
-                      <span className={`status-badge ${getStatusBadge(submission.status)}`}>
-                        {submission.status}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="submission-details">
-                  <p><strong>Category:</strong> {submission.categoryName}</p>
-                  <p><strong>Duration:</strong> {submission.duration} min</p>
-                  <p><strong>Fee:</strong> ₹{submission.fee}</p>
-                  <p><strong>Submitted:</strong> {new Date(submission.createdAt).toLocaleDateString()}</p>
-                  <p><strong>ID:</strong> {submission.submissionId}</p>
-                  {submission.verifiedBy && (
-                    <p><strong>Verified by:</strong> {submission.verifiedBy}</p>
-                  )}
-                  
-                  {/* Team Members Section */}
-                  <div className="team-members-section">
-                    <p><strong>Director:</strong> {submission.directorName}</p>
-                    <p className="director-email">{submission.directorEmail}</p>
-                    
-                    {submission.teamMemberEmails && submission.teamMemberEmails.length > 0 && (
-                      <div className="team-members-list">
-                        <p><strong>Team Members:</strong></p>
-                        <ul>
-                          {submission.teamMemberEmails.map((email, index) => (
-                            <li key={index}>{email}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </div>
+        )}
 
-                <div className="submission-actions">
-                  <a 
-                    href={submission.filmLink?.startsWith('http') ? submission.filmLink : `https://${submission.filmLink}`}
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="btn btn-secondary btn-sm"
-                  >
-                    View Film
-                  </a>
-                  {submission.paymentStatus === 'pending' && (
-                    <button 
-                      onClick={() => navigate('/payment', { state: { submission } })}
-                      className="btn btn-primary btn-sm"
-                    >
-                      Pay Now
-                    </button>
-                  )}
-                  {submission.paymentStatus === 'verified' && (
-                    <div className="verified-actions">
-                      <span className="verified-badge">✓ Payment Verified</span>
-                    </div>
-                  )}
-                </div>
+        {/* Submissions Section */}
+        <div className="submissions-section">
+          {loading ? (
+            <div className="loading-container">
+              <div className="loading-spinner" />
+              <p>Loading your submissions...</p>
+            </div>
+          ) : submissions.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon" aria-hidden="true">
+                <Film size={52} strokeWidth={1.8} />
               </div>
-            ))}
-          </div>
-        )}
+              <h2>No Submissions Yet</h2>
+              <p>You haven't submitted any films yet. Start by submitting your first film!</p>
+              <button 
+                type="button" 
+                className="submit-film-btn" 
+                onClick={() => navigate('/submit')}
+              >
+                Submit Your Film
+              </button>
+            </div>
+          ) : (
+            <>
+              <h2 className="submissions-title">Your Submissions</h2>
+              <div className="submissions-grid">
+                {submissions.map((submission) => (
+                  <div key={submission.id} className="submission-card">
+                    <div className="submission-header">
+                      <h3 className="submission-title">{submission.title}</h3>
+                      <div className="submission-badges">
+                        <span className={`status-badge ${getPaymentBadge(submission.paymentStatus)}`}>
+                          {submission.paymentStatus === 'verified' ? 'Verified' : 
+                           submission.paymentStatus === 'rejected' ? 'Rejected' :
+                           submission.paymentStatus === 'confirmation-pending' ? 'Confirming' :
+                           'Pending Payment'}
+                        </span>
+                        {submission.status && submission.status !== 'submitted' && (
+                          <span className={`status-badge ${getStatusBadge(submission.status)}`}>
+                            {submission.status.charAt(0).toUpperCase() + submission.status.slice(1)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="submission-details">
+                      <p><strong>Category:</strong> {submission.categoryName}</p>
+                      <p><strong>Duration:</strong> {submission.duration || 'N/A'} min</p>
+                      <p><strong>Fee:</strong> ₹{submission.fee || 'N/A'}</p>
+                      <p><strong>Submitted:</strong> {new Date(submission.createdAt).toLocaleDateString()}</p>
+                      <p><strong>ID:</strong> <code style={{ color: '#7ea2ff' }}>{submission.submissionId}</code></p>
+                      {submission.verifiedBy && (
+                        <p><strong>Verified by:</strong> {submission.verifiedBy}</p>
+                      )}
+                      
+                      {/* Team Members */}
+                      <div className="team-members-section">
+                        <p><strong>Director:</strong> {submission.directorName}</p>
+                        <p className="director-email">{submission.directorEmail}</p>
+                        
+                        {submission.teamMemberEmails && submission.teamMemberEmails.length > 0 && (
+                          <div className="team-members-list">
+                            <strong>Team Members:</strong>
+                            <ul>
+                              {submission.teamMemberEmails.map((email, index) => (
+                                <li key={index}>{email}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="submission-actions">
+                      <a 
+                        href={submission.filmLink?.startsWith('http') ? submission.filmLink : `https://${submission.filmLink}`}
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="submission-btn btn-view"
+                      >
+                        View Film
+                      </a>
+                      {submission.paymentStatus === 'pending' && (
+                        <button 
+                          onClick={() => navigate('/payment', { state: { submission } })}
+                          className="submission-btn btn-pay"
+                        >
+                          Pay Now
+                        </button>
+                      )}
+                      {submission.paymentStatus === 'verified' && (
+                        <div className="verified-badge">Payment Verified</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

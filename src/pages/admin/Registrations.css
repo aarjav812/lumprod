@@ -17,7 +17,7 @@
   color: var(--text-primary);
   font-size: 2.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  background: linear-gradient(135deg, #cba55a, #7ea2ff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -59,7 +59,7 @@
 }
 
 .filter-buttons button.active {
-  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  background: linear-gradient(135deg, #cba55a, #7ea2ff);
   border-color: transparent;
   color: white;
   box-shadow: 0 4px 12px rgba(167, 139, 250, 0.4);
@@ -187,7 +187,7 @@
 .reg-id {
   font-family: 'Courier New', monospace;
   font-size: 0.85rem;
-  color: #a78bfa;
+  color: #cba55a;
   font-weight: 600;
   display: block;
   max-width: 140px;
@@ -237,7 +237,7 @@
 .transaction-id {
   display: inline-block;
   background: rgba(139, 92, 246, 0.1);
-  color: #a78bfa;
+  color: #cba55a;
   padding: 0.5rem 1rem;
   border-radius: 8px;
   border: 1px solid rgba(139, 92, 246, 0.3);
@@ -268,7 +268,7 @@
 }
 
 .action-btn-review {
-  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  background: linear-gradient(135deg, #cba55a, #7ea2ff);
   color: white;
   border: none;
   padding: 0.6rem 1.5rem;
@@ -419,7 +419,7 @@
 
 .detail-section h3 {
   margin: 0 0 1rem 0;
-  color: #a78bfa;
+  color: #cba55a;
   font-size: 1.1rem;
   font-weight: 600;
 }
@@ -473,7 +473,7 @@
   min-width: 150px;
   background: rgba(139, 92, 246, 0.1);
   border: 1px solid rgba(139, 92, 246, 0.3);
-  color: #a78bfa;
+  color: #cba55a;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   text-decoration: none;

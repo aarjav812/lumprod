@@ -1,128 +1,111 @@
-import { db } from '../firebase';
+import { db } from '../firebaseDb';
 import { 
   collection, 
-  doc, 
   addDoc, 
-  getDoc, 
   getDocs, 
-  updateDoc, 
+  deleteDoc,
   query, 
-  where, 
-  orderBy,
-  serverTimestamp,
-  arrayUnion
+  where,
+  serverTimestamp
 } from 'firebase/firestore';
-import { uploadFile } from './storageService';
+
+const USER_REG_CACHE_TTL_MS = 30 * 1000;
+const userRegistrationsCache = new Map();
+
+const getUserCacheKey = (userId) => String(userId || '');
+
+const invalidateUserRegistrationCache = (userId) => {
+  if (!userId) return;
+  userRegistrationsCache.delete(getUserCacheKey(userId));
+};
+
+const readUserRegistrationCache = (userId) => {
+  const key = getUserCacheKey(userId);
+  const cached = userRegistrationsCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.cachedAt > USER_REG_CACHE_TTL_MS) {
+    userRegistrationsCache.delete(key);
+    return null;
+  }
+  return cached.value;
+};
+
+const writeUserRegistrationCache = (userId, value) => {
+  userRegistrationsCache.set(getUserCacheKey(userId), {
+    cachedAt: Date.now(),
+    value,
+  });
+};
 
 /**
  * Registration Service
- * Handles event registration operations
+ * Handles workshop and fun event registrations
  */
-
-// Generate registration ID
-const generateRegistrationId = () => {
-  return `REG-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-};
 
 /**
- * Create a new event registration
+ * Register user for a workshop or fun event
  */
-export const createRegistration = async (registrationData, user) => {
+export const registerForEvent = async (userId, userEmail, userName, eventId, eventName, eventType) => {
   try {
-    if (!user) {
-      throw new Error('User must be authenticated to register');
+    if (!userId || !eventId) {
+      throw new Error('User ID and Event ID are required');
     }
 
-    // Check if user already registered for this event
-    const existingReg = await getUserEventRegistration(user.uid, registrationData.eventId);
-    if (existingReg) {
-      throw new Error('You are already registered for this event');
+    // Check if already registered
+    const existingRegistration = await checkRegistration(userId, eventId, eventType);
+    if (existingRegistration) {
+      throw new Error('Already registered for this event');
     }
 
-    const registrationId = generateRegistrationId();
-
+    const collectionName = eventType === 'workshop' ? 'workshopRegistrations' : 'funEventRegistrations';
+    
     const registration = {
-      registrationId,
-      eventId: registrationData.eventId,
-      eventName: registrationData.eventName || '',
-      userId: user.uid,
-      userEmail: user.email,
-      userName: registrationData.userName || user.displayName || '',
-      teamId: registrationData.teamId || '',
-      verified: false,
-      paymentReceiptUrl: registrationData.paymentReceiptUrl || '',
-      discount: Number(registrationData.discount) || 0,
-      discountCode: registrationData.discountCode || '',
-      accommodationRequired: Boolean(registrationData.accommodationRequired),
-      accommodationMembers: Number(registrationData.accommodationMembers) || 0,
-      accommodationFees: Number(registrationData.accommodationFees) || 0,
-      totalFees: Number(registrationData.totalFees) || 0,
-      status: 'pending',
-      createdAt: serverTimestamp(),
-      verifiedAt: null,
-      verifiedBy: ''
+      userId,
+      userEmail,
+      userName,
+      eventId,
+      eventName,
+      eventType,
+      registeredAt: serverTimestamp(),
+      status: 'registered'
     };
 
-    const docRef = await addDoc(collection(db, 'registrations'), registration);
-
-    // Update user's eventIds array
-    const userRef = doc(db, 'users', user.uid);
-    await updateDoc(userRef, {
-      eventIds: arrayUnion(registrationData.eventId)
-    });
-
+    const docRef = await addDoc(collection(db, collectionName), registration);
+    invalidateUserRegistrationCache(userId);
+    
     return { 
       success: true, 
-      id: docRef.id, 
-      registrationId,
-      registration 
+      id: docRef.id,
+      message: 'Successfully registered for the event'
     };
   } catch (error) {
-    console.error('Error creating registration:', error);
-    throw error;
+    console.error('Error registering for event:', error);
+    throw new Error(error.message || 'Failed to register for event');
   }
 };
 
 /**
- * Upload payment receipt
+ * Check if user is already registered for an event
  */
-export const uploadPaymentReceipt = async (file, registrationId) => {
+export const checkRegistration = async (userId, eventId, eventType) => {
   try {
-    const receiptUrl = await uploadFile(file, 'receipts', `receipt_${registrationId}`);
-    return receiptUrl;
-  } catch (error) {
-    console.error('Error uploading payment receipt:', error);
-    throw error;
-  }
-};
+    if (!userId || !eventId) {
+      return false;
+    }
 
-/**
- * Get user's registration for a specific event
- */
-export const getUserEventRegistration = async (userId, eventId) => {
-  try {
+    const collectionName = eventType === 'workshop' ? 'workshopRegistrations' : 'funEventRegistrations';
+    
     const q = query(
-      collection(db, 'registrations'),
+      collection(db, collectionName),
       where('userId', '==', userId),
       where('eventId', '==', eventId)
     );
 
     const querySnapshot = await getDocs(q);
-    
-    if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      return {
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
-        verifiedAt: doc.data().verifiedAt?.toDate?.() || doc.data().verifiedAt,
-      };
-    }
-
-    return null;
+    return !querySnapshot.empty;
   } catch (error) {
-    console.error('Error getting user event registration:', error);
-    throw error;
+    console.error('Error checking registration:', error);
+    return false;
   }
 };
 
@@ -131,190 +114,123 @@ export const getUserEventRegistration = async (userId, eventId) => {
  */
 export const getUserRegistrations = async (userId) => {
   try {
+    if (!userId) {
+      return { workshops: [], funEvents: [] };
+    }
+
+    const cached = readUserRegistrationCache(userId);
+    if (cached) return cached;
+
+    const workshopQuery = query(
+      collection(db, 'workshopRegistrations'),
+      where('userId', '==', userId)
+    );
+    const funEventQuery = query(
+      collection(db, 'funEventRegistrations'),
+      where('userId', '==', userId)
+    );
+
+    const [workshopSnapshot, funEventSnapshot] = await Promise.all([
+      getDocs(workshopQuery),
+      getDocs(funEventQuery),
+    ]);
+
+    const workshops = workshopSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      registeredAt: doc.data().registeredAt?.toDate?.() || doc.data().registeredAt
+    }));
+
+    const funEvents = funEventSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      registeredAt: doc.data().registeredAt?.toDate?.() || doc.data().registeredAt
+    }));
+
+    const value = { workshops, funEvents };
+    writeUserRegistrationCache(userId, value);
+    return value;
+  } catch (error) {
+    console.error('Error getting user registrations:', error);
+    return { workshops: [], funEvents: [] };
+  }
+};
+
+/**
+ * Cancel registration
+ */
+export const cancelRegistration = async (userId, eventId, eventType) => {
+  try {
+    const collectionName = eventType === 'workshop' ? 'workshopRegistrations' : 'funEventRegistrations';
+    
     const q = query(
-      collection(db, 'registrations'),
+      collection(db, collectionName),
       where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('eventId', '==', eventId)
     );
 
     const querySnapshot = await getDocs(q);
-    const registrations = [];
+    
+    if (querySnapshot.empty) {
+      throw new Error('Registration not found');
+    }
 
-    querySnapshot.forEach((doc) => {
-      registrations.push({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
-        verifiedAt: doc.data().verifiedAt?.toDate?.() || doc.data().verifiedAt,
-      });
-    });
-
-    return registrations;
+    // Delete the registration
+    await deleteDoc(querySnapshot.docs[0].ref);
+    invalidateUserRegistrationCache(userId);
+    
+    return { 
+      success: true,
+      message: 'Registration cancelled successfully'
+    };
   } catch (error) {
-    console.error('Error getting user registrations:', error);
-    throw error;
+    console.error('Error cancelling registration:', error);
+    throw new Error(error.message || 'Failed to cancel registration');
   }
 };
 
 /**
  * Get all registrations for an event (Admin)
  */
-export const getEventRegistrations = async (eventId) => {
+export const getEventRegistrations = async (eventId, eventType) => {
   try {
+    const collectionName = eventType === 'workshop' ? 'workshopRegistrations' : 'funEventRegistrations';
+    
     const q = query(
-      collection(db, 'registrations'),
-      where('eventId', '==', eventId),
-      orderBy('createdAt', 'desc')
+      collection(db, collectionName),
+      where('eventId', '==', eventId)
     );
 
     const querySnapshot = await getDocs(q);
-    const registrations = [];
-
-    querySnapshot.forEach((doc) => {
-      registrations.push({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
-        verifiedAt: doc.data().verifiedAt?.toDate?.() || doc.data().verifiedAt,
-      });
-    });
+    const registrations = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      registeredAt: doc.data().registeredAt?.toDate?.() || doc.data().registeredAt
+    }));
 
     return registrations;
   } catch (error) {
     console.error('Error getting event registrations:', error);
-    throw error;
+    throw new Error('Failed to get event registrations');
   }
 };
 
 /**
- * Get all registrations (Admin)
+ * Get registration count for an event
  */
-export const getAllRegistrations = async (filters = {}) => {
+export const getRegistrationCount = async (eventId, eventType) => {
   try {
-    let q = query(collection(db, 'registrations'), orderBy('createdAt', 'desc'));
-
-    // Apply status filter
-    if (filters.status) {
-      q = query(
-        collection(db, 'registrations'),
-        where('status', '==', filters.status),
-        orderBy('createdAt', 'desc')
-      );
-    }
+    const collectionName = eventType === 'workshop' ? 'workshopRegistrations' : 'funEventRegistrations';
+    
+    const q = query(
+      collection(db, collectionName),
+      where('eventId', '==', eventId)
+    );
 
     const querySnapshot = await getDocs(q);
-    const registrations = [];
-
-    querySnapshot.forEach((doc) => {
-      registrations.push({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
-        verifiedAt: doc.data().verifiedAt?.toDate?.() || doc.data().verifiedAt,
-      });
-    });
-
-    return registrations;
+    return querySnapshot.size;
   } catch (error) {
-    console.error('Error getting all registrations:', error);
-    throw error;
-  }
-};
-
-/**
- * Verify registration (Admin only)
- */
-export const verifyRegistration = async (docId, adminEmail) => {
-  try {
-    const regRef = doc(db, 'registrations', docId);
-    
-    await updateDoc(regRef, {
-      verified: true,
-      status: 'verified',
-      verifiedAt: serverTimestamp(),
-      verifiedBy: adminEmail
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error verifying registration:', error);
-    throw error;
-  }
-};
-
-/**
- * Reject registration (Admin only)
- */
-export const rejectRegistration = async (docId, adminEmail, reason = '') => {
-  try {
-    const regRef = doc(db, 'registrations', docId);
-    
-    await updateDoc(regRef, {
-      verified: false,
-      status: 'rejected',
-      verifiedAt: serverTimestamp(),
-      verifiedBy: adminEmail,
-      rejectionReason: reason
-    });
-
-    return { success: true };
-  } catch (error) {
-    console.error('Error rejecting registration:', error);
-    throw error;
-  }
-};
-
-/**
- * Calculate total fees
- */
-export const calculateTotalFees = (regFees, accommodationMembers, discount = 0) => {
-  const ACCOMMODATION_RATE = 1500; // ₹1500 per member
-  
-  const eventFees = Number(regFees) || 0;
-  const accommodationFees = (Number(accommodationMembers) || 0) * ACCOMMODATION_RATE;
-  const discountAmount = Number(discount) || 0;
-  
-  const total = eventFees + accommodationFees - discountAmount;
-  
-  return {
-    eventFees,
-    accommodationFees,
-    discount: discountAmount,
-    total: Math.max(0, total) // Ensure non-negative
-  };
-};
-
-/**
- * Get registration statistics (Admin)
- */
-export const getRegistrationStats = async () => {
-  try {
-    const q = query(collection(db, 'registrations'));
-    const querySnapshot = await getDocs(q);
-    
-    const stats = {
-      total: 0,
-      pending: 0,
-      verified: 0,
-      rejected: 0,
-      totalRevenue: 0
-    };
-
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      stats.total++;
-      
-      if (data.status === 'pending') stats.pending++;
-      else if (data.status === 'verified') {
-        stats.verified++;
-        stats.totalRevenue += data.totalFees || 0;
-      }
-      else if (data.status === 'rejected') stats.rejected++;
-    });
-
-    return stats;
-  } catch (error) {
-    console.error('Error getting registration stats:', error);
-    throw error;
+    console.error('Error getting registration count:', error);
+    return 0;
   }
 };

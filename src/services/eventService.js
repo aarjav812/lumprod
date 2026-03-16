@@ -1,4 +1,4 @@
-import { db } from '../firebase';
+import { db } from '../firebaseDb';
 import { 
   collection, 
   doc, 
@@ -7,12 +7,70 @@ import {
   getDocs, 
   updateDoc, 
   deleteDoc, 
-  query, 
-  where, 
-  orderBy,
+  query,
+  where,
   serverTimestamp,
   increment
 } from 'firebase/firestore';
+
+const EVENTS_CACHE_TTL_MS = 60 * 1000;
+let eventsCache = null;
+let eventsCacheAt = 0;
+let inFlightEventsPromise = null;
+
+const normalizeDateFields = (record) => ({
+  ...record,
+  dateTime: record.dateTime?.toDate?.() || record.dateTime,
+  endDateTime: record.endDateTime?.toDate?.() || record.endDateTime,
+  createdAt: record.createdAt?.toDate?.() || record.createdAt,
+});
+
+const sortEvents = (events) => {
+  const next = [...events];
+  next.sort((a, b) => {
+    const aDate = a.dateTime ? new Date(a.dateTime) : (a.createdAt ? new Date(a.createdAt) : new Date(0));
+    const bDate = b.dateTime ? new Date(b.dateTime) : (b.createdAt ? new Date(b.createdAt) : new Date(0));
+    return aDate - bDate;
+  });
+  return next;
+};
+
+const isEventsCacheFresh = () => eventsCache && Date.now() - eventsCacheAt < EVENTS_CACHE_TTL_MS;
+
+const invalidateEventsCache = () => {
+  eventsCache = null;
+  eventsCacheAt = 0;
+  inFlightEventsPromise = null;
+};
+
+const fetchAllEventsFromFirestore = async () => {
+  const querySnapshot = await getDocs(collection(db, 'events'));
+  const events = [];
+
+  querySnapshot.forEach((docItem) => {
+    events.push(
+      normalizeDateFields({
+        id: docItem.id,
+        ...docItem.data(),
+      })
+    );
+  });
+
+  eventsCache = sortEvents(events);
+  eventsCacheAt = Date.now();
+  return eventsCache;
+};
+
+const getAllEventsCached = async ({ forceRefresh = false } = {}) => {
+  if (!forceRefresh && isEventsCacheFresh()) return eventsCache;
+  if (!forceRefresh && inFlightEventsPromise) return inFlightEventsPromise;
+
+  inFlightEventsPromise = fetchAllEventsFromFirestore().finally(() => {
+    inFlightEventsPromise = null;
+  });
+
+  return inFlightEventsPromise;
+};
 
 /**
  * Event Service
@@ -44,8 +102,14 @@ export const createEvent = async (eventData) => {
     const event = {
       eventId,
       category: eventData.category,
+      eventType: eventData.eventType || '',
+      funPhase: eventData.funPhase || '',
       eventName: eventData.eventName,
+      tagline: eventData.tagline || '',
       regFees: Number(eventData.regFees) || 0,
+      duration: eventData.duration || '',
+      eligibility: eventData.eligibility || '',
+      genres: Array.isArray(eventData.genres) ? eventData.genres : [],
       dateTime: eventData.dateTime,
       endDateTime: eventData.endDateTime || null,
       location: eventData.location || '',
@@ -53,6 +117,8 @@ export const createEvent = async (eventData) => {
       image: eventData.image || '',
       pdfLink: eventData.pdfLink || '',
       contactInfo: eventData.contactInfo || '',
+      defaultKey: eventData.defaultKey || '',
+      seededFrom: eventData.seededFrom || '',
       isTeamEvent: Boolean(eventData.isTeamEvent),
       minTeamMembers: Number(eventData.minTeamMembers) || 1,
       maxTeamMembers: Number(eventData.maxTeamMembers) || 1,
@@ -63,6 +129,7 @@ export const createEvent = async (eventData) => {
     };
 
     const docRef = await addDoc(collection(db, 'events'), event);
+    invalidateEventsCache();
     return { success: true, id: docRef.id, eventId };
   } catch (error) {
     console.error('Error creating event:', error);
@@ -75,31 +142,14 @@ export const createEvent = async (eventData) => {
  */
 export const getAllEvents = async (filters = {}) => {
   try {
-    let q = query(collection(db, 'events'), orderBy('dateTime', 'asc'));
+    const events = await getAllEventsCached({ forceRefresh: Boolean(filters.forceRefresh) });
 
-    // Apply category filter
+    let filteredEvents = events;
     if (filters.category) {
-      q = query(
-        collection(db, 'events'),
-        where('category', '==', filters.category),
-        orderBy('dateTime', 'asc')
-      );
+      filteredEvents = events.filter((event) => event.category === filters.category);
     }
 
-    const querySnapshot = await getDocs(q);
-    const events = [];
-    
-    querySnapshot.forEach((doc) => {
-      events.push({
-        id: doc.id,
-        ...doc.data(),
-        dateTime: doc.data().dateTime?.toDate?.() || doc.data().dateTime,
-        endDateTime: doc.data().endDateTime?.toDate?.() || doc.data().endDateTime,
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
-      });
-    });
-
-    return events;
+    return sortEvents(filteredEvents);
   } catch (error) {
     console.error('Error getting events:', error);
     throw new Error(`Failed to get events: ${error.message}`);
@@ -111,6 +161,10 @@ export const getAllEvents = async (filters = {}) => {
  */
 export const getEventById = async (eventId) => {
   try {
+    const cached = await getAllEventsCached();
+    const localMatch = cached.find((event) => event.id === eventId || event.eventId === eventId);
+    if (localMatch) return localMatch;
+
     // First try to find by eventId field
     const q = query(collection(db, 'events'), where('eventId', '==', eventId));
     const querySnapshot = await getDocs(q);
@@ -119,10 +173,7 @@ export const getEventById = async (eventId) => {
       const doc = querySnapshot.docs[0];
       return {
         id: doc.id,
-        ...doc.data(),
-        dateTime: doc.data().dateTime?.toDate?.() || doc.data().dateTime,
-        endDateTime: doc.data().endDateTime?.toDate?.() || doc.data().endDateTime,
-        createdAt: doc.data().createdAt?.toDate?.() || doc.data().createdAt,
+        ...normalizeDateFields(doc.data()),
       };
     }
 
@@ -133,10 +184,7 @@ export const getEventById = async (eventId) => {
     if (docSnap.exists()) {
       return {
         id: docSnap.id,
-        ...docSnap.data(),
-        dateTime: docSnap.data().dateTime?.toDate?.() || docSnap.data().dateTime,
-        endDateTime: docSnap.data().endDateTime?.toDate?.() || docSnap.data().endDateTime,
-        createdAt: docSnap.data().createdAt?.toDate?.() || docSnap.data().createdAt,
+        ...normalizeDateFields(docSnap.data()),
       };
     }
 
@@ -160,6 +208,7 @@ export const updateEvent = async (docId, eventData) => {
     };
 
     await updateDoc(eventRef, updateData);
+    invalidateEventsCache();
     return { success: true };
   } catch (error) {
     console.error('Error updating event:', error);
@@ -173,6 +222,7 @@ export const updateEvent = async (docId, eventData) => {
 export const deleteEvent = async (docId) => {
   try {
     await deleteDoc(doc(db, 'events', docId));
+    invalidateEventsCache();
     return { success: true };
   } catch (error) {
     console.error('Error deleting event:', error);

@@ -4,9 +4,17 @@ import { adminLogin } from '../../services/adminService';
 import { useAdmin } from '../../contexts/AdminContext';
 import './AdminLogin.css';
 
+const LOCAL_ADMIN_EMAIL = 'pdc@pec.edu.in';
+const LOCAL_ADMIN_PASSWORD = 'pdcamarrahe';
+
+const isLocalDev =
+  import.meta.env.DEV &&
+  typeof window !== 'undefined' &&
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
 export default function AdminLogin() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(isLocalDev ? LOCAL_ADMIN_EMAIL : '');
+  const [password, setPassword] = useState(isLocalDev ? LOCAL_ADMIN_PASSWORD : '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -18,7 +26,7 @@ export default function AdminLogin() {
     setLoading(true);
 
     try {
-      const result = await adminLogin(email, password);
+      const result = await adminLogin(email.trim(), password);
       setAdmin(result.admin);
       setIsAdminUser(true);
       navigate('/admin');
@@ -33,7 +41,7 @@ export default function AdminLogin() {
     <div className="admin-login-page">
       <div className="admin-login-container">
         <div className="admin-login-header">
-          <h1>🎬 Lumiere Admin</h1>
+          <h1>Lumiere Admin</h1>
           <p>Sign in to access the admin portal</p>
         </div>
 

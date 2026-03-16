@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AdminNavbar from '../../components/admin/AdminNavbar';
-import { db } from '../../firebase';
+import { db } from '../../firebaseDb';
 import { collection, getDocs, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { useAdmin } from '../../contexts/AdminContext';
 import './AdminCommon.css';
@@ -313,17 +313,17 @@ export default function Registrations() {
                   <div className="links-grid">
                     {selectedSubmission.filmLink && (
                       <a href={selectedSubmission.filmLink} target="_blank" rel="noopener noreferrer" className="link-button">
-                        🎬 View Film
+                        View Film
                       </a>
                     )}
                     {selectedSubmission.posterLink && (
                       <a href={selectedSubmission.posterLink} target="_blank" rel="noopener noreferrer" className="link-button">
-                        🖼️ View Poster
+                        View Poster
                       </a>
                     )}
                     {selectedSubmission.subtitlesLink && (
                       <a href={selectedSubmission.subtitlesLink} target="_blank" rel="noopener noreferrer" className="link-button">
-                        📄 View Subtitles
+                        View Subtitles
                       </a>
                     )}
                   </div>
@@ -369,7 +369,7 @@ export default function Registrations() {
                       onClick={() => handleUpdateStatus(selectedSubmission.id, 'verified')}
                       className="btn-verify"
                     >
-                      ✓ Verify Payment
+                      Verify Payment
                     </button>
                   )}
                   {selectedSubmission.paymentStatus !== 'rejected' && (
@@ -377,7 +377,7 @@ export default function Registrations() {
                       onClick={() => handleUpdateStatus(selectedSubmission.id, 'rejected')}
                       className="btn-reject"
                     >
-                      ✗ Reject
+                      Reject
                     </button>
                   )}
                   {selectedSubmission.paymentStatus !== 'pending' && (

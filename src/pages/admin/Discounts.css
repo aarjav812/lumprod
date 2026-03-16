@@ -94,7 +94,7 @@
 }
 
 .filter-buttons button.active {
-  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  background: linear-gradient(135deg, #cba55a, #7ea2ff);
   border-color: transparent;
   color: white;
 }
@@ -148,7 +148,7 @@
 }
 
 .discount-code {
-  background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+  background: linear-gradient(135deg, #cba55a, #7ea2ff);
   color: white;
   padding: 0.5rem 1rem;
   border-radius: 6px;

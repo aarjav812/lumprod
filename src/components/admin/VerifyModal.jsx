@@ -80,13 +80,13 @@ export default function VerifyModal({ registration, onVerify, onReject, onClose 
               onClick={() => setAction('verify')} 
               className="btn-verify"
             >
-              ✓ Verify
+              Verify
             </button>
             <button 
               onClick={() => setAction('reject')} 
               className="btn-reject"
             >
-              ✗ Reject
+              Reject
             </button>
           </div>
         )}

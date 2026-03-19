@@ -15,6 +15,11 @@
   color: #cfcfd4;
 }
 
+.admin-events-header .event-permission-hint {
+  color: #f4d592;
+  font-size: 0.82rem;
+}
+
 .admin-create-btn {
   border: 1px solid rgba(203, 165, 90, 0.35);
   background: linear-gradient(135deg, #cba55a, #7ea2ff);
@@ -149,6 +154,14 @@
 .btn-edit:hover,
 .btn-delete:hover {
   transform: translateY(-1px);
+}
+
+.admin-create-btn:disabled,
+.btn-edit:disabled,
+.btn-delete:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .admin-dialog-overlay {

@@ -134,15 +134,6 @@ const normalizeTeamContent = (value) => ({
     : DEFAULT_DEVELOPERS,
 });
 
-const getInitials = (name) =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
-
 const getFallbackPhoto = (member) => {
   const name = member?.name || 'Lumiere Team';
   const encodedName = encodeURIComponent(name);

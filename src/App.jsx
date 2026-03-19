@@ -15,7 +15,6 @@ import AdminProtected from './components/admin/AdminProtected';
 import ScrollToTop from "./components/ScrollToTop";
 import { resetBodyScroll } from './utils/dom';
 
-
 const routePrefetchers = {
   '/about': () => import('./pages/About'),
   '/team': () => import('./pages/Teams'),

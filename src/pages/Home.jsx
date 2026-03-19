@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { useAuth } from "../AuthContext";
 import { Camera, Calendar, ChevronDown, Instagram, Layers, Linkedin, MapPin, Monitor } from "lucide-react";
 import "./Home.css";
 
@@ -121,7 +120,6 @@ const getYouTubePreviewUrl = (url) => {
 };
 
 export default function Home() {
-  const { user } = useAuth();
   const homeRef = useRef(null);
   const [countdown, setCountdown] = useState(getCountdown);
   const [activePreview, setActivePreview] = useState("");

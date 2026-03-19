@@ -128,7 +128,7 @@ export default function AdminDashboard() {
     ]);
 
     const allRows = [headers, ...rows]
-      .map((row) => `<Row>${row.map((cell) => `<Cell><Data ss:Type=\"String\">${escapeXml(cell)}</Data></Cell>`).join('')}</Row>`)
+      .map((row) => `<Row>${row.map((cell) => `<Cell><Data ss:Type="String">${escapeXml(cell)}</Data></Cell>`).join('')}</Row>`)
       .join('');
 
     const xml = `<?xml version="1.0"?>

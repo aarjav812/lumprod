@@ -147,7 +147,7 @@ function MemberEditor({
   title,
   members,
   onChange,
-  sectionKey,
+  sectionKey: _sectionKey,
   compact = false,
 }) {
   const updateMember = (index, key, value) => {

@@ -8,6 +8,7 @@ import {
 } from '../../services/eventService';
 import { getImageUrlCandidates, toDirectImageUrl } from '../../utils/imageUrl';
 import { useAdmin } from '../../contexts/AdminContext';
+import { auth } from '../../firebaseAuth';
 import './AdminCommon.css';
 import './ManageEvents.css';
 
@@ -278,6 +279,7 @@ export default function ManageEvents() {
   const [formData, setFormData] = useState(EMPTY_FORM);
 
   const categoryOptions = useMemo(() => CATEGORY_BY_TYPE[formData.eventType] || [], [formData.eventType]);
+  const hasFirebaseAdminSession = Boolean(auth.currentUser && !admin?.isLocalDevAdmin);
 
   useEffect(() => {
     loadEvents();
@@ -342,9 +344,15 @@ export default function ManageEvents() {
   const loadEvents = async () => {
     try {
       const data = await getAllEvents();
-      await bootstrapDefaultEvents(data);
-      const updated = await getAllEvents();
-      setEvents(updated);
+
+      if (data.length === 0) {
+        await bootstrapDefaultEvents(data);
+        const updated = await getAllEvents({ forceRefresh: true });
+        setEvents(updated);
+        return;
+      }
+
+      setEvents(data);
     } catch (error) {
       console.error('Error loading events:', error);
       alert('Failed to load events');
@@ -354,12 +362,22 @@ export default function ManageEvents() {
   };
 
   const openCreateDialog = () => {
+    if (!hasFirebaseAdminSession) {
+      alert('Create/Edit/Delete requires a Firebase-authenticated admin session. Please log in with an authorized admin account.');
+      return;
+    }
+
     setEditingEvent(null);
     setFormData(EMPTY_FORM);
     setDialogOpen(true);
   };
 
   const openEditDialog = (event) => {
+    if (!hasFirebaseAdminSession) {
+      alert('Create/Edit/Delete requires a Firebase-authenticated admin session. Please log in with an authorized admin account.');
+      return;
+    }
+
     const eventType = inferTypeFromEvent(event);
     const knownCategory = (CATEGORY_BY_TYPE[eventType] || []).find((option) => option.id === event.category);
 
@@ -437,6 +455,12 @@ export default function ManageEvents() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (!hasFirebaseAdminSession) {
+      alert('Save failed: you are not in a Firebase-authenticated admin session.');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -490,13 +514,35 @@ export default function ManageEvents() {
   };
 
   const handleDelete = async (event) => {
+    if (!hasFirebaseAdminSession) {
+      alert('Delete failed: you are not in a Firebase-authenticated admin session.');
+      return;
+    }
+
     if (!window.confirm(`Delete event "${event.eventName}"?`)) return;
+
     try {
       await deleteEvent(event.id);
       await loadEvents();
     } catch (error) {
       console.error('Error deleting event:', error);
-      alert('Failed to delete event');
+
+      if ((error?.message || '').includes('linked records')) {
+        const forceConfirm = window.confirm(`${error.message}\n\nDo you want to force delete this event anyway?`);
+        if (!forceConfirm) return;
+
+        try {
+          await deleteEvent(event.id, { force: true });
+          await loadEvents();
+          return;
+        } catch (forceError) {
+          console.error('Error force deleting event:', forceError);
+          alert(forceError.message || 'Failed to delete event');
+          return;
+        }
+      }
+
+      alert(error.message || 'Failed to delete event');
     }
   };
 
@@ -519,8 +565,13 @@ export default function ManageEvents() {
           <div>
             <h1>Manage Events</h1>
             <p>Edit all existing competition, workshop, and fun events. Add new ones from the same dialog.</p>
+            {!hasFirebaseAdminSession && (
+              <p className="event-permission-hint">
+                Read-only mode: write actions are disabled until you sign in with a Firebase-authenticated admin account.
+              </p>
+            )}
           </div>
-          <button className="btn-primary admin-create-btn" onClick={openCreateDialog}>+ Add Event</button>
+          <button className="btn-primary admin-create-btn" onClick={openCreateDialog} disabled={!hasFirebaseAdminSession}>+ Add Event</button>
         </div>
 
         <div className="events-list">
@@ -566,8 +617,8 @@ export default function ManageEvents() {
                     {event.eligibility && <p className="event-team">Eligibility: {event.eligibility}</p>}
                   </div>
                   <div className="event-actions">
-                    <button className="btn-edit" onClick={() => openEditDialog(event)}>Edit</button>
-                    <button className="btn-delete" onClick={() => handleDelete(event)}>Delete</button>
+                    <button className="btn-edit" onClick={() => openEditDialog(event)} disabled={!hasFirebaseAdminSession}>Edit</button>
+                    <button className="btn-delete" onClick={() => handleDelete(event)} disabled={!hasFirebaseAdminSession}>Delete</button>
                   </div>
                 </article>
               ))}

@@ -336,3 +336,9 @@
     margin-bottom: 6rem;
   }
 }
+
+@media (max-width: 480px) {
+  .admin-page {
+    margin-bottom: 6rem;
+  }
+}

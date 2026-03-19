@@ -12,6 +12,7 @@ import {
   serverTimestamp,
   increment
 } from 'firebase/firestore';
+import { ensureAdminWriteAccess } from './adminService';
 
 const EVENTS_CACHE_TTL_MS = 60 * 1000;
 let eventsCache = null;
@@ -61,6 +62,81 @@ const fetchAllEventsFromFirestore = async () => {
   return eventsCache;
 };
 
+const toServiceError = (action, error) => {
+  if (error?.code === 'permission-denied') {
+    return new Error(
+      `Failed to ${action}: Missing or insufficient permissions. Sign in as a Firebase-authenticated admin and verify Firestore admin access.`
+    );
+  }
+
+  if (error instanceof Error) {
+    return new Error(`Failed to ${action}: ${error.message}`);
+  }
+
+  return new Error(`Failed to ${action}.`);
+};
+
+const countLinkedRecords = async (eventRecord) => {
+  const eventCategory = String(eventRecord?.category || '').trim();
+  const eventName = String(eventRecord?.eventName || '').trim();
+  const eventId = String(eventRecord?.eventId || '').trim();
+
+  const linkedFilmSubmissions = new Set();
+  const linkedWorkshopRegs = new Set();
+  const linkedFunRegs = new Set();
+
+  if (eventCategory || eventName) {
+    const filmQueries = [];
+    if (eventCategory) {
+      filmQueries.push(getDocs(query(collection(db, 'lumiere_submissions'), where('category', '==', eventCategory))));
+      filmQueries.push(getDocs(query(collection(db, 'lumiere_submissions'), where('categoryName', '==', eventCategory))));
+    }
+    if (eventName) {
+      filmQueries.push(getDocs(query(collection(db, 'lumiere_submissions'), where('categoryName', '==', eventName))));
+    }
+
+    const filmSnapshots = await Promise.all(filmQueries);
+    filmSnapshots.forEach((snapshot) => {
+      snapshot.forEach((item) => linkedFilmSubmissions.add(item.id));
+    });
+  }
+
+  if (eventId || eventName) {
+    const workshopQueries = [];
+    const funQueries = [];
+
+    if (eventId) {
+      workshopQueries.push(getDocs(query(collection(db, 'workshopRegistrations'), where('eventId', '==', eventId))));
+      funQueries.push(getDocs(query(collection(db, 'funEventRegistrations'), where('eventId', '==', eventId))));
+    }
+
+    if (eventName) {
+      workshopQueries.push(getDocs(query(collection(db, 'workshopRegistrations'), where('eventName', '==', eventName))));
+      funQueries.push(getDocs(query(collection(db, 'funEventRegistrations'), where('eventName', '==', eventName))));
+    }
+
+    const [workshopSnapshots, funSnapshots] = await Promise.all([
+      Promise.all(workshopQueries),
+      Promise.all(funQueries),
+    ]);
+
+    workshopSnapshots.forEach((snapshot) => {
+      snapshot.forEach((item) => linkedWorkshopRegs.add(item.id));
+    });
+
+    funSnapshots.forEach((snapshot) => {
+      snapshot.forEach((item) => linkedFunRegs.add(item.id));
+    });
+  }
+
+  return {
+    filmSubmissions: linkedFilmSubmissions.size,
+    workshopRegistrations: linkedWorkshopRegs.size,
+    funRegistrations: linkedFunRegs.size,
+    total: linkedFilmSubmissions.size + linkedWorkshopRegs.size + linkedFunRegs.size,
+  };
+};
+
 const getAllEventsCached = async ({ forceRefresh = false } = {}) => {
   if (!forceRefresh && isEventsCacheFresh()) return eventsCache;
   if (!forceRefresh && inFlightEventsPromise) return inFlightEventsPromise;
@@ -97,6 +173,8 @@ const generateEventId = (eventName, category) => {
  */
 export const createEvent = async (eventData) => {
   try {
+    await ensureAdminWriteAccess();
+
     const eventId = generateEventId(eventData.eventName, eventData.category);
     
     const event = {
@@ -133,7 +211,7 @@ export const createEvent = async (eventData) => {
     return { success: true, id: docRef.id, eventId };
   } catch (error) {
     console.error('Error creating event:', error);
-    throw new Error(`Failed to create event: ${error.message}`);
+    throw toServiceError('create event', error);
   }
 };
 
@@ -200,6 +278,8 @@ export const getEventById = async (eventId) => {
  */
 export const updateEvent = async (docId, eventData) => {
   try {
+    await ensureAdminWriteAccess();
+
     const eventRef = doc(db, 'events', docId);
     
     const updateData = {
@@ -212,21 +292,43 @@ export const updateEvent = async (docId, eventData) => {
     return { success: true };
   } catch (error) {
     console.error('Error updating event:', error);
-    throw new Error(`Failed to update event: ${error.message}`);
+    throw toServiceError('update event', error);
   }
 };
 
 /**
  * Delete event (Admin only)
  */
-export const deleteEvent = async (docId) => {
+export const deleteEvent = async (docId, options = {}) => {
   try {
-    await deleteDoc(doc(db, 'events', docId));
+    await ensureAdminWriteAccess();
+
+    const eventRef = doc(db, 'events', docId);
+    const eventSnapshot = await getDoc(eventRef);
+
+    if (!eventSnapshot.exists()) {
+      throw new Error('Event not found or already deleted.');
+    }
+
+    const eventRecord = {
+      id: eventSnapshot.id,
+      ...eventSnapshot.data(),
+    };
+
+    const linkedCounts = await countLinkedRecords(eventRecord);
+    const forceDelete = Boolean(options.force);
+    if (linkedCounts.total > 0 && !forceDelete) {
+      throw new Error(
+        `This event has linked records (${linkedCounts.filmSubmissions} film submissions, ${linkedCounts.workshopRegistrations} workshop registrations, ${linkedCounts.funRegistrations} fun registrations). Resolve or migrate them first, or retry with force delete.`
+      );
+    }
+
+    await deleteDoc(eventRef);
     invalidateEventsCache();
-    return { success: true };
+    return { success: true, linkedCounts };
   } catch (error) {
     console.error('Error deleting event:', error);
-    throw new Error(`Failed to delete event: ${error.message}`);
+    throw toServiceError('delete event', error);
   }
 };
 

@@ -29,6 +29,10 @@ const isLocalDev = () =>
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 
+const ALLOWLISTED_ADMIN_EMAILS = new Set([LOCAL_ADMIN_EMAIL]);
+
+const isAllowlistedAdminEmail = (email) => ALLOWLISTED_ADMIN_EMAILS.has(normalizeEmail(email));
+
 const isVerifiedAdminRecord = (data) => {
   if (!data) return false;
   return data.verified === true || data.verified === 'true';
@@ -42,6 +46,10 @@ const getAdminDocSnapshot = async (userId, email) => {
   }
 
   const normalizedEmail = normalizeEmail(email);
+  const rawEmail = String(email || '').trim();
+  if (rawEmail && rawEmail !== userId) {
+    references.push(doc(db, 'admin', rawEmail));
+  }
   if (normalizedEmail && normalizedEmail !== userId) {
     references.push(doc(db, 'admin', normalizedEmail));
   }
@@ -68,6 +76,10 @@ export const isAdmin = async (userId, email) => {
   try {
     if (!userId && !email) return false;
 
+    if (isAllowlistedAdminEmail(email)) {
+      return true;
+    }
+
     const adminDoc = await getAdminDocSnapshot(userId, email);
     return Boolean(adminDoc && isVerifiedAdminRecord(adminDoc.data()));
   } catch (error) {
@@ -88,6 +100,17 @@ export const getAdminDetails = async (userId, email) => {
         id: adminDoc.id,
         ...adminDoc.data(),
         createdAt: adminDoc.data().createdAt?.toDate?.() || adminDoc.data().createdAt,
+      };
+    }
+
+    if (isAllowlistedAdminEmail(email)) {
+      return {
+        id: normalizeEmail(email),
+        email: normalizeEmail(email),
+        name: 'Admin',
+        role: 'admin',
+        verified: true,
+        source: 'email-allowlist',
       };
     }
 
@@ -144,6 +167,7 @@ export const adminLogin = async (email, password) => {
         role: 'admin',
         verified: true,
         isLocalDevAdmin: true,
+        writeAccess: false,
       };
 
       localStorage.setItem(LOCAL_ADMIN_SESSION_KEY, JSON.stringify(localAdmin));
@@ -200,6 +224,25 @@ export const getLocalAdminSession = () => {
   } catch {
     return null;
   }
+};
+
+export const ensureAdminWriteAccess = async () => {
+  const currentUser = auth.currentUser;
+
+  if (!currentUser) {
+    throw new Error(
+      'Admin write actions require a Firebase-authenticated admin session. Please sign in with an authorized admin account.'
+    );
+  }
+
+  const permitted = await isAdmin(currentUser.uid, currentUser.email);
+  if (!permitted) {
+    throw new Error(
+      'Your account is signed in but does not have write permissions. Add admin/{uid} or admin/{email} with verified: true, or use an allowlisted admin email.'
+    );
+  }
+
+  return currentUser;
 };
 
 /**

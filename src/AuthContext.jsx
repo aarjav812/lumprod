@@ -14,9 +14,9 @@ import {
 
 const AuthContext = createContext(null);
 const googleProvider = new GoogleAuthProvider();
-const LOCAL_TEST_EMAIL = 'pdc@pec.edu.in';
-const LOCAL_TEST_PASSWORD = 'pdcamarrahe';
-const LOCAL_DEV_SESSION_KEY = 'lumiere_local_dev_user';
+const LOCAL_TEST_EMAIL = '';
+const LOCAL_TEST_PASSWORD = '';
+const LOCAL_DEV_SESSION_KEY = '';
 
 const isLocalDev = () =>
   import.meta.env.DEV &&
